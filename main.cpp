@@ -23,9 +23,9 @@ void Display(char display[8][8])
     }
 }
 
-void Game(pair<int, int> &currentPos, char display[8][8])
+void Game(pair<int, int> &currentPos, char display[8][8], bool direction)
 {
-    if (currentPos == make_pair(5, 0)) {
+    if (currentPos == make_pair(7, 0)) {
         
     display[currentPos.first][currentPos.second] = ' ';
         currentPos = make_pair(0, 0);
@@ -36,6 +36,34 @@ void Game(pair<int, int> &currentPos, char display[8][8])
     display[currentPos.first][currentPos.second] = ' ';
         currentPos.first += 1;
     display[currentPos.first][currentPos.second] = 'O';
+
+    if (direction) {
+        if (currentPos.second < 7)
+        currentPos.second += 1;
+    }
+    else {
+        if (currentPos.second > 0)
+        currentPos.second -= 1;
+    }
+}
+}
+
+void movement(bool right)
+{
+    char movement;
+    cin >> movement;
+
+    if (movement == 'w') {
+        // Move up
+    }
+    else if (movement == 's') {
+        // Move down
+    }
+    else if (movement == 'a') {
+        right = 0;
+    }
+    else if (movement == 'd') {
+        right = 1;
     }
 }
 
@@ -55,8 +83,10 @@ int main() {
 
     pair <int, int> currentPos = make_pair(0, 0);
 
+    bool direction = 1; // 1 for right, 0 for left
     while (true) {
-        Game(currentPos, display);
+        movement(direction);
+        Game(currentPos, display, direction);
         Display(display);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Delay for 1 second (1000 milliseconds)
