@@ -37,26 +37,23 @@
 //
 `default_nettype	none
 //
-module	vgatestsrc(i_pixclk, i_reset,
+module	vgatestsrc(
+	input i_pixclk,
+	input i_reset,
 		// External connections
-		i_width, i_height,
-		i_rd, i_newline, i_newframe,
+		input [HW-1:0] i_width,
+		input [VW-1:0] i_height,
+		input i_rd, 
+		input i_newline, 
+		input i_newframe,
 		// VGA connections
-		o_pixel);
+		output [BPP-1:0] o_pixel);
 	parameter	BITS_PER_COLOR = 4,
 			HW=12, VW=12;
 		//HW=13,VW=11;
 	localparam	BPC = BITS_PER_COLOR,
 			BITS_PER_PIXEL = 3 * BPC,
 			BPP = BITS_PER_PIXEL;
-	//
-	input	wire			i_pixclk, i_reset;
-	input	wire	[HW-1:0]	i_width;
-	input	wire	[VW-1:0]	i_height;
-	//
-	input	wire		i_rd, i_newline, i_newframe;
-	//
-	output	reg	[(BPP-1):0]	o_pixel;
 
 
 
