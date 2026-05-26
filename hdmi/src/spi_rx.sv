@@ -2,7 +2,7 @@ module spi_rx (
     input  wire SCK,
     input  wire MOSI,
     input  wire CSN,
-    output reg [15:0] led_data,
+    output reg [15:0] data,
     output reg spi_valid
 );
 

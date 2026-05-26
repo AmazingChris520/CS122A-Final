@@ -2,6 +2,9 @@
 
 module top (
 	input clk_25mhz,
+  input MOSI,
+  input CSN,
+  input SCK,
   output [3:0] gpdi_dp, 
   output [3:0] gpdi_dn,
 	output wifi_gpio0);
@@ -15,9 +18,10 @@ module top (
       .clk_25MHz(clk_25MHz),
       .clk_250MHz(clk_250MHz)
   );
-
+  wire spi_valid;
   wire [7:0] red, grn, blu;
   wire [23:0] pixel;
+  wire [15:0] control;
   assign red= pixel[23:16];
   assign grn= pixel[15:8];
   assign blu= pixel[7:0];
@@ -42,6 +46,8 @@ tetris_display tetris_instance(
     .pixel(pixel),
     .vga_x(vga_x),
     .vga_y(vga_y)
+    //.control(control),
+    //.spi_valid(spi_valid)
 );
 
   llhdmi llhdmi_instance(
@@ -53,7 +59,14 @@ tetris_display tetris_instance(
     .CounterY(vga_y)
     );
 
-  
+  spi_rx spi_instance(
+    .MOSI(MOSI),
+    .CSN(CSN),
+    .SCK(SCK),
+    .data(control),
+    .spi_valid(spi_valid)
+  );
+
   OBUFDS OBUFDS_red(.I(o_red), .O(gpdi_dp[2]), .OB(gpdi_dn[2]));
   OBUFDS OBUFDS_grn(.I(o_grn), .O(gpdi_dp[1]), .OB(gpdi_dn[1]));
   OBUFDS OBUFDS_blu(.I(o_blu), .O(gpdi_dp[0]), .OB(gpdi_dn[0]));
