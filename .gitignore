@@ -1,1 +1,6 @@
-output\main.exe
+hdmi/build/
+build/
+hdmi/build/llhdmi.json
+hdmi/build/llhdmi.cfg
+hdmi/build/llhdmi.svf
+hdmi/build/llhdmi.bit
