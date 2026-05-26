@@ -1,96 +1,109 @@
-#include <iostream>
-#include <utility>
-#include <chrono>
-#include <thread>
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "hardware/adc.h"
+#include "hardware/spi.h"
 
-using namespace std;
+#define SPI_PORT spi0
+#define SCK_PIN  18
+#define MOSI_PIN 19
+#define CS_PIN   17
 
-enum gameState {
-    START,
-    PLAYING,
-    GAME_OVER
-}; // Only playing for now
+int moveInt = 0;
 
-void Display(char display[8][8])
-{
+enum movement {START, IDLE};
+enum movement stateMove = START;
+enum SPIState {SPISTART, TRANSMIT};
+enum SPIState state_spi = SPISTART;
 
-    system("cls"); // Clear the console (works on Windows, for Unix/Linux use "clear")
-    for (int i = 0; i < 8; i++) {
-        for (int j = 0; j < 8; j++) {
-            cout << display[i][j];
-        }
-        cout << endl;
+void move(enum movement *state) {
+    switch (*state) {
+        case START:
+            *state = IDLE; // FIX 2: Dereference pointer properly
+            break;
+
+        case IDLE:
+            adc_select_input(0); // Reads GPIO 26
+            int value = adc_read();
+            
+            // FIX 4: Adjusted thresholds to match Pico's 12-bit ADC spectrum (0-4095)
+            if (value > 2000) {
+                moveInt = 1;
+            } else if (value < 2000) {
+                moveInt = 2;
+            } else {
+                moveInt = 0;
+            }
+            break;
     }
 }
 
-void Game(pair<int, int> &currentPos, char display[8][8], bool direction)
-{
-    if (currentPos == make_pair(7, 0)) {
-        
-    display[currentPos.first][currentPos.second] = ' ';
-        currentPos = make_pair(0, 0);
-
+void SPITick(enum SPIState *state) {
+    switch (*state) {
+        case SPISTART:
+            *state = TRANSMIT;
+            break;
+        case TRANSMIT:
+            break;
+        default:
+            *state = SPISTART;
+            break;
     }
-    else
-    {
-    display[currentPos.first][currentPos.second] = ' ';
-        currentPos.first += 1;
-    display[currentPos.first][currentPos.second] = 'O';
 
-    if (direction) {
-        if (currentPos.second < 7)
-        currentPos.second += 1;
-    }
-    else {
-        if (currentPos.second > 0)
-        currentPos.second -= 1;
+    switch (*state) {
+        case SPISTART:
+            break;
+
+        case TRANSMIT:
+            gpio_put(CS_PIN, 0); // Pull CS Low to select FPGA receiver
+            
+            // FIX 3: Cast to 16-bit variable and send exactly 2 bytes (16 bits)
+            // uint16_t tx_payload = (uint16_t)moveInt; 
+            uint8_t tx_payload = (uint8_t)2; 
+            spi_write_blocking(SPI_PORT, (uint8_t*)&tx_payload, 1); 
+            
+            gpio_put(CS_PIN, 1); // Pull CS High to finish packet transmission
+            break;
+
+        default:
+            break;
     }
 }
+
+bool Tick() {
+    SPITick(&state_spi);
+    move(&stateMove);
+    return true;
 }
 
-void movement(bool right)
-{
-    char movement;
-    cin >> movement;
-
-    if (movement == 'w') {
-        // Move up
-    }
-    else if (movement == 's') {
-        // Move down
-    }
-    else if (movement == 'a') {
-        right = 0;
-    }
-    else if (movement == 'd') {
-        right = 1;
-    }
-}
+struct repeating_timer timer;
 
 int main() {
-    cout << "Hello, World!" << endl;
+    stdio_init_all();
+    
+    // FIX 1: Initialize SPI hardware subsystem
+    spi_init(SPI_PORT, 1000000); // 1 MHz communication speed
+    gpio_set_function(SCK_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(MOSI_PIN, GPIO_FUNC_SPI);
+    
+    // Configure CS pin manually
+    gpio_init(CS_PIN);
+    gpio_set_dir(CS_PIN, GPIO_OUT);
+    gpio_put(CS_PIN, 1); 
 
-    char display[8][8] = {
-        {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
-        {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
-        {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
-        {' ', ' ', ' ', 'X', 'X', 'X', 'X', 'X'},
-        {' ', ' ', ' ', 'X', 'X', 'X', 'X', 'X'},
-        {' ', ' ', ' ', 'X', 'X', 'X', 'X', 'X'},
-        {' ', ' ', ' ', 'X', 'X', 'X', 'X', 'X'},
-        {' ', ' ', ' ', 'X', 'X', 'X', 'X', 'X'}
-    };
+    // Setup input diagnostic pins
+    gpio_init(6);
+    gpio_set_dir(6, GPIO_IN);
+    gpio_init(7);
+    gpio_set_dir(7, GPIO_IN);
+    
+    // Initialize Analog to Digital Converter
+    adc_init();
+    adc_gpio_init(26); // ADC0
+    adc_gpio_init(27); // ADC1
 
-    pair <int, int> currentPos = make_pair(0, 0);
-
-    bool direction = 1; // 1 for right, 0 for left
+    // Add repeating timer execution loop tracking every 500ms
+    //add_repeating_timer_ms(-500, Tick, NULL, &timer);
     while (true) {
-        movement(direction);
-        Game(currentPos, display, direction);
-        Display(display);
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Delay for 1 second (1000 milliseconds)
+    Tick(); // Call Tick once to initialize state
     }
-
-    return 0;
 }
