@@ -4,9 +4,12 @@ module llhdmi(
   input wire i_tmdsclk, input wire i_pixclk,
   input wire i_reset, input wire [7:0] i_red, input wire [7:0] i_grn, input wire [7:0] i_blu,
   output wire o_rd, output reg o_newline, output reg o_newframe,
-  output wire o_red, output wire o_grn, output wire o_blu);
+  output wire o_red, output wire o_grn, output wire o_blu,
+  output logic [9:0] CounterX,
+  output logic [9:0] CounterY
+  );
 
-  reg [9:0] CounterX, CounterY;
+  // reg [9:0] CounterX, CounterY;
   reg hSync, vSync, DrawArea;
 
   // Keep track of the current X/Y pixel position
@@ -33,7 +36,7 @@ module llhdmi(
   always @(posedge i_pixclk)
     DrawArea <= (CounterX<640) && (CounterY<480);
 
-  assign o_rd= ~i_reset & DrawArea;
+  assign o_rd = ~i_reset & DrawArea;
 
   // Generate horizontal and vertical sync pulses
   always @(posedge i_pixclk)
