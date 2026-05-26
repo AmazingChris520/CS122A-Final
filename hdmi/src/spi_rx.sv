@@ -2,7 +2,7 @@ module spi_rx (
     input  wire SCK,
     input  wire MOSI,
     input  wire CSN,
-    output reg [15:0] data,
+    output reg [7:0] data,
     output reg spi_valid
 );
 
@@ -10,8 +10,9 @@ module spi_rx (
     reg [15:0] shift_reg;
     reg [15:0] next_shift;
     
+    
 
-    initial led_data = 16'b0000000000000000; // All LEDs on at start
+    initial data = 8'b00000000; // All LEDs on at start
     always @(posedge SCK or posedge CSN) begin
     if (CSN) begin
         bit_index <= 0;
@@ -20,14 +21,15 @@ module spi_rx (
     end else begin
             next_shift = {shift_reg[14:0], MOSI};
             shift_reg <= next_shift;
-
             if (bit_index == 4'd15) begin
-                led_data <= next_shift; 
+                data <= 8'd2;
+                //data <= next_shift; // Capture the full 16 bits of data 
                 spi_valid <= 1;
                 //led_data = 8'hFF;
                 bit_index <= 0;
             end else begin
                 spi_valid <= 0;
+                data <= 8'd2;
                 bit_index <= bit_index + 1;
             end
         end

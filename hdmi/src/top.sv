@@ -21,7 +21,7 @@ module top (
   wire spi_valid;
   wire [7:0] red, grn, blu;
   wire [23:0] pixel;
-  wire [15:0] control;
+  wire [7:0] control;
   assign red= pixel[23:16];
   assign grn= pixel[15:8];
   assign blu= pixel[7:0];
@@ -45,9 +45,9 @@ tetris_display tetris_instance(
     .rst(reset),
     .pixel(pixel),
     .vga_x(vga_x),
-    .vga_y(vga_y)
-    //.control(control),
-    //.spi_valid(spi_valid)
+    .vga_y(vga_y),
+    .control(control),
+    .spi_valid(spi_valid)
 );
 
   llhdmi llhdmi_instance(
@@ -58,7 +58,7 @@ tetris_display tetris_instance(
     .CounterX(vga_x),
     .CounterY(vga_y)
     );
-
+    
   spi_rx spi_instance(
     .MOSI(MOSI),
     .CSN(CSN),
