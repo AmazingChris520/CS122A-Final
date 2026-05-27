@@ -11,7 +11,7 @@
 #define DEADBAND     400
 
 int moveInt = 0;
-
+5
 enum movement {START, IDLE};
 enum movement stateMove = START;
 enum SPIState {SPISTART, TRANSMIT};
