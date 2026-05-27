@@ -22,15 +22,15 @@
             next_shift = {shift_reg[6:0], MOSI};
             shift_reg <= next_shift;
             if (bit_index == 4'd7) begin
-                data <= 8'd2;
-                //data <= next_shift; // Capture the full 16 bits of data 
-                spi_valid <= 1;
+                //data <= 8'd2;
+                data <= next_shift; // Capture the full 16 bits of data 
+                spi_valid <= 1'b1;
                 //led_data = 8'hFF;
-                bit_index <= 0;
+                bit_index <= 4'd0;
             end else begin
-                spi_valid <= 0;
-                data <= 8'd2;
-                bit_index <= bit_index + 1;
+                spi_valid <= 1'b0;
+                //data <= 8'd2;
+                bit_index <= bit_index + 4'd1;
             end
         end
     end

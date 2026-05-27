@@ -7,6 +7,8 @@
 #define SCK_PIN  18
 #define MOSI_PIN 19
 #define CS_PIN   17
+#define REST_X       2900   // <-- replace with what you measured
+#define DEADBAND     400
 
 int moveInt = 0;
 
@@ -24,15 +26,11 @@ void move(enum movement *state) {
         case IDLE:
             adc_select_input(0); // Reads GPIO 26
             int value = adc_read();
-            
+            printf("ADC0 rest=%d\n", value); 
             // FIX 4: Adjusted thresholds to match Pico's 12-bit ADC spectrum (0-4095)
-            if (value > 2000) {
-                moveInt = 1;
-            } else if (value < 2000) {
-                moveInt = 2;
-            } else {
-                moveInt = 0;
-            }
+            if      (value > REST_X + DEADBAND) moveInt = 1;   // right
+            else if (value < REST_X - DEADBAND) moveInt = 2;   // left
+            else moveInt = 0;   // idle
             break;
     }
 }
@@ -58,8 +56,8 @@ void SPITick(enum SPIState *state) {
             
             // FIX 3: Cast to 16-bit variable and send exactly 2 bytes (16 bits)
             // uint16_t tx_payload = (uint16_t)moveInt; 
-            uint8_t tx_payload = (uint8_t)2; 
-            spi_write_blocking(SPI_PORT, (uint8_t*)&tx_payload, 1); 
+            uint8_t tx_payload = (uint8_t)moveInt;
+            spi_write_blocking(SPI_PORT, &tx_payload, 1);
             
             gpio_put(CS_PIN, 1); // Pull CS High to finish packet transmission
             break;
