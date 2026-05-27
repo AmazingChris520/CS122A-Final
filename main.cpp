@@ -20,14 +20,14 @@ enum SPIState state_spi = SPISTART;
 void move(enum movement *state) {
     switch (*state) {
         case START:
-            *state = IDLE; // FIX 2: Dereference pointer properly
+            *state = IDLE;
             break;
 
         case IDLE:
             adc_select_input(0); // Reads GPIO 26
             int value = adc_read();
             printf("ADC0 rest=%d\n", value); 
-            // FIX 4: Adjusted thresholds to match Pico's 12-bit ADC spectrum (0-4095)
+            
             if      (value > REST_X + DEADBAND) moveInt = 1;   // right
             else if (value < REST_X - DEADBAND) moveInt = 2;   // left
             else moveInt = 0;   // idle
@@ -52,14 +52,12 @@ void SPITick(enum SPIState *state) {
             break;
 
         case TRANSMIT:
-            gpio_put(CS_PIN, 0); // Pull CS Low to select FPGA receiver
+            gpio_put(CS_PIN, 0);
             
-            // FIX 3: Cast to 16-bit variable and send exactly 2 bytes (16 bits)
-            // uint16_t tx_payload = (uint16_t)moveInt; 
             uint8_t tx_payload = (uint8_t)moveInt;
             spi_write_blocking(SPI_PORT, &tx_payload, 1);
             
-            gpio_put(CS_PIN, 1); // Pull CS High to finish packet transmission
+            gpio_put(CS_PIN, 1);
             break;
 
         default:
@@ -78,30 +76,24 @@ struct repeating_timer timer;
 int main() {
     stdio_init_all();
     
-    // FIX 1: Initialize SPI hardware subsystem
-    spi_init(SPI_PORT, 1000000); // 1 MHz communication speed
+    spi_init(SPI_PORT, 1000000);
     gpio_set_function(SCK_PIN, GPIO_FUNC_SPI);
     gpio_set_function(MOSI_PIN, GPIO_FUNC_SPI);
     
-    // Configure CS pin manually
     gpio_init(CS_PIN);
     gpio_set_dir(CS_PIN, GPIO_OUT);
     gpio_put(CS_PIN, 1); 
 
-    // Setup input diagnostic pins
     gpio_init(6);
     gpio_set_dir(6, GPIO_IN);
     gpio_init(7);
     gpio_set_dir(7, GPIO_IN);
     
-    // Initialize Analog to Digital Converter
     adc_init();
     adc_gpio_init(26); // ADC0
     adc_gpio_init(27); // ADC1
 
-    // Add repeating timer execution loop tracking every 500ms
-    //add_repeating_timer_ms(-500, Tick, NULL, &timer);
     while (true) {
-    Tick(); // Call Tick once to initialize state
+    Tick();
     }
 }

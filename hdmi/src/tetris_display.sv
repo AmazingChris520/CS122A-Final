@@ -12,8 +12,7 @@
 //
 //   Horizontal movement is CLAMPED to the playfield, i.e. the block never
 //   leaves columns 0..FIELD_COLS-1. Vertical movement still wraps to the
-//   top of the field when it reaches the bottom (this is just for visual
-//   testing -- swap for a real lock/spawn step when you do actual Tetris).
+//   top of the field when it reaches the bottom.
 // =============================================================================
 module tetris_display(
     input  wire         clk,
