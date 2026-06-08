@@ -4,6 +4,7 @@
 //  8'd2 -> move left  one column
 //  8'd3 -> rotate clockwise
 //  8'd4 -> fast drop while held
+//  8'd5 -> swap places
 //  The active piece is drawn red.
 //  Locked cells are drawn grey.
 module tetris_display(
@@ -26,6 +27,14 @@ module tetris_display(
     localparam int FIELD_Y0 = (480 - FIELD_H) / 2;
     localparam int FIELD_X1 = FIELD_X0 + FIELD_W;
     localparam int FIELD_Y1 = FIELD_Y0 + FIELD_H;
+    localparam int NEXT_X0 = FIELD_X1 + 16;
+    localparam int NEXT_Y0 = FIELD_Y0;
+    localparam int NEXT_X1 = NEXT_X0 + 4 * CELL_W_PX;
+    localparam int NEXT_Y1 = NEXT_Y0 + 4 * CELL_H_PX;
+    localparam int STOR_X1 = FIELD_X0 - 16;
+    localparam int STOR_Y0 = FIELD_Y0;
+    localparam int STOR_X0 = STOR_X1 - 4 * CELL_W_PX;
+    localparam int STOR_Y1 = STOR_Y0 + 4 * CELL_H_PX;
     localparam int BORDER_PX = 4;
 // Timing (25 MHz clock)
     localparam int FALL_TICKS = 25_000_000;
@@ -33,10 +42,11 @@ module tetris_display(
     localparam int FAST_DROP_TICKS = 1_250_000;
     localparam int LOCK_TICKS = 12_500_000;
 
-    localparam logic [1:0] S_FALLING = 2'd0;
-    localparam logic [1:0] S_LOCKING = 2'd1;
-    localparam logic [1:0] S_SPAWN = 2'd2;
-    localparam logic [1:0] S_CLEAR = 2'd3;
+    localparam logic [2:0] S_FALLING = 2'd0;
+    localparam logic [2:0] S_LOCKING = 2'd1;
+    localparam logic [2:0] S_SPAWN = 2'd2;
+    localparam logic [2:0] S_CLEAR = 2'd3;
+    localparam logic [2:0] S_GAMEOVER = 3'd4;
 
     localparam logic [2:0] P_I = 3'd0;
     localparam logic [2:0] P_O = 3'd1;
@@ -46,7 +56,7 @@ module tetris_display(
     localparam logic [2:0] P_J = 3'd5;
     localparam logic [2:0] P_L = 3'd6;
 
-    logic [1:0] state;
+    logic [2:0] state;
 
     // The piece position is the top-left corner of a 4x4 box. piece_col is signed
     // so rotations with empty left columns can move slightly past the wall while
@@ -54,6 +64,8 @@ module tetris_display(
     logic signed [4:0] piece_col;
     logic [4:0] piece_row;
     logic [2:0] piece_type;
+    logic [2:0] next_piece_type;
+    logic [2:0] stored_piece_type;
     logic [1:0] piece_rot;
 
     // The LFSR free-runs, so the next piece depends on player timing.
@@ -64,6 +76,7 @@ module tetris_display(
     logic [21:0] move_cnt;
     logic [20:0] fast_cnt;
     logic [4:0] clear_row;
+    logic swapped;
 
     logic [FIELD_COLS-1:0] board [FIELD_ROWS-1:0];
 
@@ -205,9 +218,10 @@ module tetris_display(
 
     initial begin
         state = S_SPAWN;
-        piece_col = 5'sd3;
+        piece_col = 5'd3;
         piece_row = 5'd0;
         piece_type = P_I;
+        stored_piece_type = P_O;
         piece_rot = 2'd0;
         lfsr = 8'hA5;
         fall_cnt = '0;
@@ -215,6 +229,7 @@ module tetris_display(
         move_cnt = '0;
         fast_cnt = '0;
         clear_row = '0;
+        swapped = 1'b0;
 
         for (i = 0; i < FIELD_ROWS; i = i + 1)
             board[i] = '0;
@@ -266,6 +281,18 @@ module tetris_display(
                             piece_col <= piece_col - 5'sd1;
                         else if (control == 8'd3 && can_rotate)
                             piece_rot <= rot_next;
+                        else if (control == 8'd5 && !swapped) begin
+                            piece_type <= stored_piece_type;
+                            stored_piece_type <= piece_type;
+                            swapped = 1'b1;
+                            piece_col <= 5'sd3;
+                            piece_row <= 5'd0;
+                            piece_rot <= 2'd0;
+                            fall_cnt <= '0;
+                            lock_cnt <= '0;
+                            move_cnt <= '0;
+                            fast_cnt <= '0;
+                        end
                     end
 
                     if ((control == 8'd4) &&
@@ -327,14 +354,17 @@ module tetris_display(
 
                                         if ((lock_r >= 0) && (lock_r < FIELD_ROWS) &&
                                             (lock_c >= 0) && (lock_c < FIELD_COLS)) begin
+
                                             board[lock_r][lock_c] <= 1'b1;
                                         end
                                     end
                                 end
                             end
 
+                            
                             clear_row <= FIELD_ROWS - 1;
                             state <= S_CLEAR;
+                            
                         end
                     end
                 end
@@ -359,13 +389,29 @@ module tetris_display(
                 S_SPAWN: begin
                     piece_col <= 5'sd3;
                     piece_row <= 5'd0;
-                    piece_type <= random_piece(lfsr);
+                    next_piece_type <= random_piece(lfsr);
+                    piece_type <= next_piece_type;
                     piece_rot <= 2'd0;
                     fall_cnt <= '0;
                     lock_cnt <= '0;
                     move_cnt <= '0;
                     fast_cnt <= '0;
-                    state <= S_FALLING;
+                    swapped <= 1'b0;
+
+                    if (board[0] != '0)
+                        state <= S_GAMEOVER;
+                    else
+                        state <= S_FALLING;
+
+                end
+
+                S_GAMEOVER: begin
+
+                for (i = 0; i < FIELD_ROWS; i = i + 1)
+                    board[i] <= '0;
+
+                state <= S_SPAWN;
+
                 end
 
                 default: state <= S_SPAWN;
@@ -375,6 +421,12 @@ module tetris_display(
 
     wire in_field = (vga_x >= FIELD_X0) && (vga_x < FIELD_X1) &&
                     (vga_y >= FIELD_Y0) && (vga_y < FIELD_Y1);
+
+    wire in_next_field = (vga_x >= NEXT_X0) && (vga_x < NEXT_X1) &&
+                        (vga_y >= NEXT_Y0) && (vga_y < NEXT_Y1);
+
+    wire in_storage = (vga_x >= STOR_X0) && (vga_x < STOR_X1) &&
+                      (vga_y >= STOR_Y0) && (vga_y < STOR_Y1);
 
     wire [9:0] rel_x = vga_x - 10'(FIELD_X0);
     wire [9:0] rel_y = vga_y - 10'(FIELD_Y0);
@@ -394,16 +446,28 @@ module tetris_display(
 
     logic in_block;
     logic in_stack;
+    logic in_next_block;
+    logic in_storage_block;
     integer local_r;
     integer local_c;
+    integer nr;
+    integer nc;
+    integer sr;
+    integer sc;
     logic signed [5:0] cell_col_s;
     logic signed [5:0] piece_col_s;
 
     always_comb begin
         in_block = 1'b0;
+        in_next_block = 1'b0;
         in_stack = 1'b0;
+        in_storage_block = 1'b0;
         local_r = 0;
         local_c = 0;
+        nr = 0;
+        nc = 0;
+        sr = 0;
+        sc = 0;
         cell_col_s = 6'sd0;
         piece_col_s = 6'sd0;
 
@@ -421,6 +485,20 @@ module tetris_display(
                 in_block = piece_cell(piece_type, piece_rot, local_r, local_c);
             end
         end
+            else if (in_next_field) begin
+                // Map pixel to cell within the 4x4 preview grid
+                nr = (vga_y - NEXT_Y0) / CELL_H_PX;
+                nc = (vga_x - NEXT_X0) / CELL_W_PX;
+                if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4)
+                    in_next_block = piece_cell(next_piece_type, 2'd0, nr, nc);
+            end
+            else if (in_storage) begin
+                // Map pixel to cell within the 4x4 preview grid
+                sr = (vga_y - STOR_Y0) / CELL_H_PX;
+                sc = (vga_x - STOR_X0) / CELL_W_PX;
+                if (sr >= 0 && sr < 4 && sc >= 0 && sc < 4)
+                    in_storage_block = piece_cell(stored_piece_type, 2'd0, sr, sc);
+            end
     end
 
     wire in_active = (vga_x < 10'd640) && (vga_y < 10'd480);
@@ -438,6 +516,10 @@ module tetris_display(
             pixel = 24'h001500;
         else if (in_border)
             pixel = 24'h00FF00;
+        else if (in_next_block)
+            pixel = 24'hFF0000;
+        else if (in_storage_block)
+            pixel = 24'hFF0000;
         else
             pixel = 24'h000000;
     end
