@@ -284,7 +284,7 @@ module tetris_display(
                         else if (control == 8'd5 && !swapped) begin
                             piece_type <= stored_piece_type;
                             stored_piece_type <= piece_type;
-                            swapped = 1'b1;
+                            swapped <= 1'b1;
                             piece_col <= 5'sd3;
                             piece_row <= 5'd0;
                             piece_rot <= 2'd0;
